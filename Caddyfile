@@ -1,0 +1,28 @@
+# Quickstart default: plain HTTP — the PWA and its /api, same-origin.
+# NOTE: over plain HTTP on a LAN IP the PWA loses installability/offline
+# (secure-context requirement); remote players use the TLS profile instead.
+
+:80 {
+	handle /api/* {
+		reverse_proxy gateway:8090
+	}
+	handle /healthz {
+		reverse_proxy gateway:8090
+	}
+	# Same-origin Foundry ASSET proxy (2026-07-18): the PWA loads actor
+	# portraits/effect icons ('ddb-images/…', 'systems/…') via /fvtt/<path>.
+	# Image files only — everything else 404s so no Foundry UI is exposed.
+	handle_path /fvtt/* {
+		# respond runs before reverse_proxy in Caddy's directive order, so
+		# the 404 must be matcher-scoped to NON-images; images fall through.
+		@notimg not path_regexp \.(webp|png|jpe?g|gif|svg|avif)$
+		respond @notimg 404
+		reverse_proxy foundry:30000
+	}
+	handle {
+		root * /srv/app
+		try_files {path} /index.html
+		file_server
+	}
+	encode gzip
+}
