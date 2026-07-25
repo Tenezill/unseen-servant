@@ -89,6 +89,7 @@ export function renderCredsForm({
   error = null,
   username = '',
   licenseKey = '',
+  publicHost = '',
   tls = false,
   domainApp = '',
   domainVtt = '',
@@ -103,6 +104,10 @@ export function renderCredsForm({
 <input type="password" id="password" name="password" autocomplete="current-password" required>
 <label for="licenseKey">license key <small>(leave blank to fetch from the account)</small></label>
 <input type="text" id="licenseKey" name="licenseKey" value="${escapeHtml(licenseKey)}">`;
+  const publicHostSection = !needTls
+    ? ''
+    : `<label for="publicHost">Where will you (the GM) reach this server? <small>Pairing links and the module URL use this.</small></label>
+<input type="text" id="publicHost" name="publicHost" value="${escapeHtml(publicHost)}" required>`;
   const tlsSection = !needTls
     ? ''
     : `<details${tls ? ' open' : ''}><summary>Enable HTTPS on your own domain (optional)</summary>
@@ -120,7 +125,7 @@ export function renderCredsForm({
   return renderShell({
     title: 'Setup — Foundry’s Unseen Servant',
     body: `<h1>Summon your servant</h1>${err}${intro}
-<form method="post" action="submit">${creds}${tlsSection}<button type="submit">Begin the ritual</button></form>`,
+<form method="post" action="submit">${creds}${publicHostSection}${tlsSection}<button type="submit">Begin the ritual</button></form>`,
   });
 }
 
@@ -212,10 +217,13 @@ function readBody(req, maxBytes) {
 }
 
 /** null when valid, else a user-facing error string. */
-function validateForm(form, { needCreds, needTls }) {
+export function validateForm(form, { needCreds, needTls }) {
   if (needCreds) {
     if ((form.username ?? '').trim() === '') return 'foundry.com username is required.';
     if ((form.password ?? '') === '') return 'foundry.com password is required.';
+  }
+  if (needTls && (form.publicHost ?? '').trim() === '') {
+    return "tell us where you'll reach this server (IP or domain).";
   }
   if (needTls && form.tls === 'on') {
     for (const f of ['domainApp', 'domainVtt', 'acmeEmail']) {
@@ -225,7 +233,7 @@ function validateForm(form, { needCreds, needTls }) {
   return null;
 }
 
-function normalizeForm(form, { needCreds, needTls }) {
+export function normalizeForm(form, { needCreds, needTls }) {
   const creds = !needCreds
     ? null
     : {
@@ -242,10 +250,12 @@ function normalizeForm(form, { needCreds, needTls }) {
           acmeEmail: form.acmeEmail.trim(),
         }
       : { enabled: false };
-  return { creds, tls };
+  const result = { creds, tls };
+  if (needTls) result.publicHost = (form.publicHost ?? '').trim();
+  return result;
 }
 
-export function createWizard({ token, needCreds, needTls, bgPath, statusUrl, onSubmit }) {
+export function createWizard({ token, needCreds, needTls, defaultPublicHost = '', bgPath, statusUrl, onSubmit }) {
   let state = 'collecting';
   let exitCode = 1;
   let bg = null; // lazily read so construction is side-effect-free
@@ -266,7 +276,7 @@ export function createWizard({ token, needCreds, needTls, bgPath, statusUrl, onS
   function pageForState() {
     switch (state) {
       case 'collecting':
-        return renderCredsForm({ needCreds, needTls });
+        return renderCredsForm({ needCreds, needTls, publicHost: defaultPublicHost });
       case 'submitting':
       case 'composing':
         return renderProgressPage();
@@ -348,6 +358,7 @@ export function createWizard({ token, needCreds, needTls, bgPath, statusUrl, onS
         needTls,
         username: form.username ?? '',
         licenseKey: form.licenseKey ?? '',
+        publicHost: form.publicHost ?? '',
         tls: form.tls === 'on',
         domainApp: form.domainApp ?? '',
         domainVtt: form.domainVtt ?? '',

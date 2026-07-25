@@ -14,7 +14,7 @@ import { createInterface } from 'node:readline/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { createWizard } from './setup-wizard.mjs';
 import { networkInterfaces } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,14 +60,16 @@ export function buildGatewayEnv({ adminPassword }) {
   return `ADMIN_PASSWORD=${adminPassword}\n`;
 }
 
-export function buildDotEnv({ tls }) {
+export function buildDotEnv({ tls, publicHost }) {
   const lines = ['HOST_PORT_WEB=8080', 'HOST_PORT_FOUNDRY=30000', 'HOST_PORT_RELAY=3010', 'HOST_PORT_STATUS=8321'];
   if (tls) lines.push('COMPOSE_PROFILES=tls', 'FOUNDRY_PROXY_SSL=true', 'FOUNDRY_PROXY_PORT=443');
   // Auto-launch your world on start/reboot — fill in the world id once it exists:
   lines.push('# FOUNDRY_WORLD=your-world-id');
-  // The URL your browser uses to reach the relay, so module pairing approvals
-  // open your self-hosted page instead of the public foundryrestapi.com:
-  lines.push('# RELAY_PUBLIC_URL=https://relay.example.com');
+  // The URL the GM's browser uses to reach the relay: pairing approvals open
+  // RELAY_PUBLIC_URL/pair/<code> on YOUR relay (not foundryrestapi.com), and
+  // the admin panel derives the module's ws:// URL from it. Always http — the
+  // relay is never behind the Caddy TLS proxy (E2E finding 3).
+  lines.push(`RELAY_PUBLIC_URL=http://${publicHost}:3010`);
   return lines.join('\n') + '\n';
 }
 
@@ -94,6 +96,38 @@ export const QUICKSTART_BIND_DIRS = ['foundry_data', 'relay-data', 'gateway-data
 
 export function isPodmanRuntime(compose) {
   return Array.isArray(compose) && compose[0].startsWith('podman');
+}
+
+// The felddy foundry image runs as this fixed non-root uid on the docker
+// path; root-created bind mounts / 0600 secrets are unreadable to it and the
+// container aborts (felddy/foundryvtt-docker discussion #1197 — E2E findings
+// 1+2). Rootless Podman is exempt: keep-id (see buildPodmanComposeOverride)
+// maps the container uid to the host user, so host ownership is already right.
+export const FOUNDRY_CONTAINER_UID = 1000;
+
+/**
+ * Pure plan (testable) for aligning ownership with the container uid.
+ * @param {{platform: string, euid: number, isPodman: boolean, qdir: string}} p
+ * @returns {{chowns: string[][], warning: string|null}}
+ */
+export function planOwnershipFixes({ platform, euid, isPodman, qdir }) {
+  const none = { chowns: [], warning: null };
+  if (platform !== 'linux' || isPodman) return none;
+  // Always posix-joined: this models paths on the Linux container host (the
+  // `platform !== 'linux'` guard above), independent of the OS running setup
+  // (e.g. these tests execute under Windows Node, where `join` would emit `\`).
+  const targets = [posix.join(qdir, 'foundry_data'), posix.join(qdir, 'secrets', 'foundry-config.json')];
+  const owner = `${FOUNDRY_CONTAINER_UID}:${FOUNDRY_CONTAINER_UID}`;
+  if (euid === 0) return { chowns: [['chown', '-R', owner, ...targets]], warning: null };
+  if (euid === FOUNDRY_CONTAINER_UID) return none;
+  return {
+    chowns: [],
+    warning:
+      `the foundry container runs as uid ${FOUNDRY_CONTAINER_UID} and must own its data dir and secret, ` +
+      `but setup is running as uid ${euid} and cannot fix that.\n` +
+      `  Run:  sudo chown -R ${owner} ${targets.join(' ')}\n` +
+      `  then re-run \`make setup\` (or restart the stack).`,
+  };
 }
 
 // felddy foundry runs as a fixed non-root uid; under rootless Podman the host
@@ -165,8 +199,8 @@ export function writeSecretsBundle(creds, dirs = { secrets: SECRETS }) {
   ];
 }
 
-/** Write .env (+ Caddyfile.tls when TLS is enabled). tls: {enabled, domainApp?, domainVtt?, acmeEmail?} */
-export function writeEnvFiles(tls, dirs = { qdir: QDIR }) {
+/** Write .env (+ Caddyfile.tls when TLS is enabled). tls: {enabled, domainApp?, domainVtt?, acmeEmail?}, publicHost: string */
+export function writeEnvFiles(tls, publicHost, dirs = { qdir: QDIR }) {
   if (tls.enabled) {
     writeFileSync(
       join(dirs.qdir, 'Caddyfile.tls'),
@@ -174,7 +208,7 @@ export function writeEnvFiles(tls, dirs = { qdir: QDIR }) {
       'utf8',
     );
   }
-  writeFileSync(join(dirs.qdir, '.env'), buildDotEnv({ tls: tls.enabled }), 'utf8');
+  writeFileSync(join(dirs.qdir, '.env'), buildDotEnv({ tls: tls.enabled, publicHost }), 'utf8');
 }
 
 function printGeneratedSecrets(generated) {
@@ -225,11 +259,15 @@ async function main() {
         token: generateSecret(),
         needCreds,
         needTls,
+        defaultPublicHost: ip,
         bgPath: join(REPO_ROOT, 'scripts', 'assets', 'unseen-servant.jpg'),
         statusUrl: `http://${ip}:8321/`,
-        onSubmit: async ({ creds, tls }) => {
+        onSubmit: async ({ creds, tls, publicHost }) => {
+          // Must stay synchronous (no awaits before the writes): main() resumes
+          // on the next microtask and runs the ownership chown — a secret
+          // written after that point would stay root-owned (E2E finding 2).
           if (creds !== null) generated = writeSecretsBundle(creds);
-          if (needTls) writeEnvFiles(tls);
+          if (needTls) writeEnvFiles(tls, publicHost ?? ip);
           if (generated.length > 0) printGeneratedSecrets(generated); // terminal backup, both paths
           return generated;
         },
@@ -277,7 +315,9 @@ async function main() {
           tls.domainVtt = (await rl.question('  foundry domain (e.g. vtt.example.com): ')).trim();
           tls.acmeEmail = (await rl.question("  email for Let's Encrypt: ")).trim();
         }
-        writeEnvFiles(tls);
+        const defaultHost = wantTls ? tls.domainApp || ip : ip;
+        const answered = (await rl.question(`Where will you (the GM) reach this server? [${defaultHost}]: `)).trim();
+        writeEnvFiles(tls, answered === '' ? defaultHost : answered);
       }
       if (generated.length > 0) printGeneratedSecrets(generated);
     }
@@ -309,6 +349,21 @@ async function main() {
     } else if (existsSync(override) && readFileSync(override, 'utf8').startsWith(PODMAN_OVERRIDE_MARKER)) {
       rmSync(override, { force: true });
     }
+
+    // E2E findings 1+2: align ownership with the foundry container's uid.
+    const ownership = planOwnershipFixes({
+      platform: process.platform,
+      euid: typeof process.getuid === 'function' ? process.getuid() : -1,
+      isPodman: isPodmanRuntime(compose),
+      qdir: QDIR,
+    });
+    for (const cmd of ownership.chowns) {
+      const r = spawnSync(cmd[0], cmd.slice(1), { stdio: 'inherit' });
+      if (r.status !== 0) {
+        console.warn(`\nWARNING: ${cmd.join(' ')} failed — the foundry container may not be able to read its data dir or secret. Fix ownership manually and re-run \`make setup\`.`);
+      }
+    }
+    if (ownership.warning !== null) console.warn(`\nWARNING: ${ownership.warning}`);
 
     if (args.includes('--no-up')) {
       wizard?.close();

@@ -68,7 +68,7 @@ services:
     restart: unless-stopped
 
   bootstrap:
-    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.1.0
+    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.1.1
     env_file:
       # raw: secret values must survive verbatim (no $-interpolation)
       - path: ./secrets/bootstrap.env
@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    image: ghcr.io/tenezill/unseen-servant-gateway:v0.1.0
+    image: ghcr.io/tenezill/unseen-servant-gateway:v0.1.1
     env_file:
       - path: ./secrets/gateway.env
         format: raw
@@ -115,7 +115,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/tenezill/unseen-servant-web:v0.1.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.1.1
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
@@ -129,7 +129,7 @@ services:
   # `sysctl net.ipv4.ip_unprivileged_port_start=80` (docs Part C).
   web-tls:
     profiles: ["tls"]
-    image: ghcr.io/tenezill/unseen-servant-web:v0.1.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.1.1
     volumes:
       - ./Caddyfile.tls:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
