@@ -1,21 +1,27 @@
-MIT License
+Unseen Servant Deployment Files License
 
 Copyright (c) 2026 Sebastian Ramsauer
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted, free of charge, to use, copy, and modify the files in
+this repository (the compose file, configuration templates, setup and update
+scripts, and documentation) for the purpose of installing and operating
+Unseen Servant, including in commercial settings (for example, running paid
+game sessions).
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may NOT:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- sell these files or charge for access to them;
+- include them in any paid product, service, or hosting offering;
+- redistribute them, modified or unmodified, outside your own household or
+  organization — point people at this repository instead.
+
+The Unseen Servant application itself (the container images published at
+ghcr.io/tenezill/unseen-servant-*) is licensed separately under its EULA —
+see /licence/EULA.md inside each image. Foundry VTT and the
+foundryvtt-rest-api relay are separate projects under their own terms.
+
+THE FILES ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE FILES OR THE USE OF THE FILES.

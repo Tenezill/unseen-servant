@@ -63,11 +63,13 @@ Re-run `make setup` and answer the TLS prompts, or see the comments in
 
 ## License
 
-The deployment files in this repo are MIT. The app's container images
-(`ghcr.io/tenezill/unseen-servant-*`) are free to use under their EULA
-(no redistribution/resale; see `/licence/EULA.md` inside each image, along
-with third-party attributions). Foundry VTT and the relay are separate
-projects under their own terms.
+Everything here is free to use, including commercially (e.g. paid game
+sessions) — but nothing may be resold. The deployment files in this repo are
+covered by the [Deployment Files License](LICENSE); the app's container
+images (`ghcr.io/tenezill/unseen-servant-*`) by their EULA (no
+redistribution/resale; see `/licence/EULA.md` inside each image, along with
+third-party attributions). Foundry VTT and the relay are separate projects
+under their own terms.
 
 ## Issues
 
