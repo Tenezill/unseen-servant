@@ -3,7 +3,7 @@
 A mobile-first companion app for [Foundry VTT](https://foundryvtt.com):
 players manage their characters — rolls, spells, inventory, combat — from
 their phone while the GM runs the table in Foundry. Currently supports
-D&D 5e (best supported), Mörk Borg, and Vampire: the Masquerade 5e.
+D&D 5e (best supported), I'm working on getting more systems in. 
 
 Free to use. The app itself is closed-source; this repo contains the
 installer and deployment files.
