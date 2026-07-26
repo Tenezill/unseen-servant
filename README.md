@@ -21,6 +21,10 @@ everything together automatically (module install, relay pairing key).
 - Node.js 22+ (runs the setup wizard and updates)
 - A Foundry VTT license (foundryvtt.com account)
 
+**New here? The [step-by-step setup guide](GUIDE.md) covers everything from
+empty server to playing on your phone — including the pairing flow and
+troubleshooting.**
+
 ## Install
 
 ```bash
