@@ -198,6 +198,8 @@ remote players a VPN like Tailscale pointed at the same ports works well.
 |---|---|
 | Foundry container logs "insufficient permissions on /data" | Setup was run as a non-root user that can't align file ownership. Run `sudo chown -R 1000:1000 foundry_data secrets/foundry-config.json` and restart. (Running `make setup` as root handles this automatically.) |
 | Pair button opens foundryrestapi.com | The module's WebSocket Relay URL is still the default. See step 5.2. |
+| Pairing fails with "TypeError: Failed to fetch" | The relay isn't reachable from your browser at the module's URL — the companion stack may be down, or the host/port in the URL is wrong. Check the URL matches the admin panel's value and that `http://<same-host>:3010` opens in a browser tab. |
+| Module shows "Paired" but with a URL mismatch warning | The stored pairing belongs to a different relay URL (e.g. after changing the module URL). Click **Unpair**, then **Pair** again against the new URL. |
 | "Copy" buttons in the app do nothing | Browsers only allow clipboard access on HTTPS or localhost. Select and copy the text manually, or set up TLS (section 8). |
 | Port already in use on startup | Something else uses 8080/30000/3010/8321. Change `HOST_PORT_*` in `.env` and `docker compose up -d`. |
 | Foundry asks for credentials again after a reboot and no world loads | Set `FOUNDRY_WORLD=<your-world-id>` in `.env` so the world auto-launches, then `docker compose up -d`. |
