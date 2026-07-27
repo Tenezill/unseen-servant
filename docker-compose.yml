@@ -24,6 +24,10 @@ name: unseen-servant-quickstart
 
 services:
   foundry:
+    # v0.3.0: bundled Foundry is profile-gated. `make setup` writes
+    # COMPOSE_PROFILES=foundry (bundled) or omits it (bring-your-own-Foundry);
+    # `make update` migrates pre-v0.3.0 installs (update-stack.mjs).
+    profiles: ["foundry"]
     image: felddy/foundryvtt:14.364.0
     # License signature binds to the hostname — never change (HOSTING.md A2).
     hostname: foundry
@@ -68,14 +72,17 @@ services:
     restart: unless-stopped
 
   bootstrap:
-    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.2.0
+    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.3.0
     env_file:
       # raw: secret values must survive verbatim (no $-interpolation)
       - path: ./secrets/bootstrap.env
         format: raw
     environment:
       - RELAY_URL=http://relay:3010
-      - FOUNDRY_URL=http://foundry:30000
+      # Bundled: in-network foundry service. BYO: the operator's external URL
+      # from .env (FOUNDRY_MODE=external written by `make setup`).
+      - FOUNDRY_URL=${FOUNDRY_URL:-http://foundry:30000}
+      - FOUNDRY_MODE=${FOUNDRY_MODE:-bundled}
       - RUNTIME_DIR=/run/companion
       - FOUNDRY_DATA_DIR=/foundry-data
       - STATUS_PORT=8321
@@ -90,7 +97,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    image: ghcr.io/tenezill/unseen-servant-gateway:v0.2.0
+    image: ghcr.io/tenezill/unseen-servant-gateway:v0.3.0
     env_file:
       - path: ./secrets/gateway.env
         format: raw
@@ -115,7 +122,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/tenezill/unseen-servant-web:v0.2.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.3.0
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
@@ -129,7 +136,7 @@ services:
   # `sysctl net.ipv4.ip_unprivileged_port_start=80` (docs Part C).
   web-tls:
     profiles: ["tls"]
-    image: ghcr.io/tenezill/unseen-servant-web:v0.2.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.3.0
     volumes:
       - ./Caddyfile.tls:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data

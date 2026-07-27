@@ -15,6 +15,10 @@ One `docker compose` stack: Foundry VTT (bring your own license), the
 the companion gateway + web app, and a bootstrap sidecar that wires
 everything together automatically (module install, relay pairing key).
 
+Already running Foundry somewhere? The setup wizard can connect to an
+existing instance instead of running the bundled one — see
+[the guide](GUIDE.md#2b-connect-an-existing-foundry-bring-your-own).
+
 ## Requirements
 
 - Docker with Compose v2, or rootless Podman with podman-compose
@@ -35,7 +39,9 @@ make setup
 
 The wizard asks for your foundryvtt.com credentials (used once by the
 Foundry container to fetch its release), generates all other secrets, writes
-them to `./secrets/` (mode 0600), and starts the stack.
+them to `./secrets/` (mode 0600), and starts the stack. Its first question lets
+you connect an existing Foundry instance instead — see
+[the guide](GUIDE.md#2b-connect-an-existing-foundry-bring-your-own) for that workflow.
 
 Afterwards:
 

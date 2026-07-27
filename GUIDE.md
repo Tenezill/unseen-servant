@@ -17,14 +17,13 @@ their characters — rolls, spells, inventory, combat — from their phones.
 | Requirement | Notes |
 |---|---|
 | A Linux server, VPS, or home machine | 2 GB RAM is plenty. Windows/macOS with Docker Desktop also work for trying it out. |
-| Docker with Compose v2 | `docker compose version` should print a version. Rootless Podman works too. |
+| Docker with Compose v2 | `docker compose version` should print a version. Rootless Podman works too (podman-compose new enough to support COMPOSE_PROFILES). |
 | Node.js 22+ | Only used by the setup wizard and updater: `node --version`. |
 | A Foundry VTT license | Your foundryvtt.com account. You do NOT need to download Foundry — the stack fetches it with your credentials. |
 
 > **One license, one server:** a Foundry license allows one active server at a
-> time. If you already run Foundry elsewhere, stop it before starting this
-> stack (or see the issue tracker — connecting to an existing instance is a
-> planned feature).
+> time. If you already run Foundry elsewhere, either stop it before starting
+> this stack, or connect to it instead — see section 2b.
 
 ## 2. Install
 
@@ -38,7 +37,9 @@ make setup
 `http://<your-ip>:8322/s/<token>/` — open that in a browser (nicer), or just
 press Enter in the terminal to answer there instead.
 
-The wizard asks for:
+The wizard's first question asks whether to run Foundry here or connect to an
+existing one. To connect an existing instance, go to section 2b instead. For
+the standard bundled setup, the wizard continues with:
 
 1. **Your foundryvtt.com username/email and password.** Used once by the
    Foundry container to download its release and fetch your license. Stored
@@ -52,6 +53,37 @@ The wizard asks for:
 4. **HTTPS on your own domain?** — optional, skip for a first run (see
    section 8).
 
+## 2b. Connect an existing Foundry (bring your own)
+
+Already running Foundry — native, Docker, or on a VPS? The wizard's first
+question lets you connect to it instead of running a bundled one. What
+changes versus the standard flow:
+
+- **Before running `make setup`:** in your world, create a Gamemaster-role
+  user for the app (suggested name `Companion`) and give it a password —
+  the wizard asks for these credentials instead of your foundryvtt.com
+  login. Foundry allows one session per user, so this keeps your own GM
+  seat free.
+- **Foundry URL:** enter it as reachable FROM the machine running the
+  companion stack (e.g. `http://192.168.1.9:30000`), not necessarily the
+  URL you use in your browser.
+- **Module install is manual:** in Foundry, Add-on Modules → Install
+  Module, search for "Foundry REST API" (or use the manifest URL from
+  https://github.com/ThreeHats/foundryvtt-rest-api/releases — the stack is
+  tested against 3.4.1). Then continue with section 5 exactly as written:
+  set the WebSocket Relay URL BEFORE clicking Pair.
+- **Reboots:** the stack cannot relaunch your world after your Foundry
+  restarts — launch it yourself (or use your own auto-launch mechanism,
+  e.g. felddy's `FOUNDRY_WORLD` if your Foundry runs in Docker). While a
+  world is running, the Companion login keeps it alive for your players.
+- **https Foundry (important):** if your Foundry is served over https,
+  browsers block the module's insecure `ws://` connection to the relay
+  (mixed content). You'll need the relay reachable via `wss://` behind
+  your own TLS proxy — supporting this out of the box is planned.
+- Hosted providers (Forge, Molten): untested. The module needs to make an
+  outbound WebSocket connection to your relay — it may work; reports
+  welcome in the issue tracker.
+
 ### ⚠️ The generated-secrets page — write these down
 
 The wizard generates four secrets and shows them **exactly once**:
@@ -63,10 +95,16 @@ The wizard generates four secrets and shows them **exactly once**:
 | Relay account password | Approving the pairing (step 5) |
 | App admin password | Opening the app's `/admin` console (step 6) |
 
+*Bring-your-own installs only get the last two secrets (relay account + app
+admin passwords). The Companion password is one you chose yourself in section
+2b, and there is no Foundry admin key.*
+
 Save them, then confirm — the stack starts. First boot downloads Foundry
 (a few minutes). Watch progress at `http://<your-ip>:8321`.
 
 ## 3. First-time Foundry setup
+
+*Bundled setups only — connected to an existing Foundry? You did this in section 2b; skip to section 5.*
 
 Open `http://<your-ip>:30000`.
 
@@ -79,6 +117,8 @@ Open `http://<your-ip>:30000`.
 
 ## 4. Create the Companion user
 
+*Bundled setups only — connected to an existing Foundry? You did this in section 2b; skip to section 5.*
+
 The app logs into your world through a dedicated GM user, so YOUR
 Gamemaster seat stays free (Foundry allows one session per user).
 
@@ -88,8 +128,8 @@ In your world: **Settings → User Management**, create a user named exactly
 
 ## 5. Connect the module (order matters!)
 
-The stack already installed the "Foundry REST API" module into your Foundry —
-you just have to enable and point it:
+Bundled setups find the "Foundry REST API" module already installed; BYO users
+installed it in section 2b. Either way, you now enable and point it:
 
 1. In your world: **Settings → Manage Modules** → enable **Foundry REST API**.
 2. **Before clicking anything else**, open the module's settings and set
@@ -130,6 +170,11 @@ Data-safe by design: it pulls the new pinned image versions and recreates
 only changed containers. Your world, players, secrets, and relay pairings
 are never touched.
 
+**Updating from v0.2.x or earlier?** Run `make update` twice — the first run updates the
+updater itself, the second applies the new compose profile migration. If
+compose warns about an orphaned foundry container in between, ignore it (do
+NOT use `--remove-orphans`); your world data is untouched.
+
 ## 8. Remote access & HTTPS (optional)
 
 For play over the internet on your own domain:
@@ -156,9 +201,16 @@ remote players a VPN like Tailscale pointed at the same ports works well.
 | Foundry asks for credentials again after a reboot and no world loads | Set `FOUNDRY_WORLD=<your-world-id>` in `.env` so the world auto-launches, then `docker compose up -d`. |
 | "This license key is already in use" | Your license is active on another server. Stop the other Foundry first. |
 | Wizard link unreachable on a remote server | Tunnel it: `ssh -L 8322:localhost:8322 <host>`, then open `http://localhost:8322/s/<token>/`. |
+| BYO mode: players drop when I close my browser | The Companion user keeps the world alive only while the world is running and the credentials are correct — check the status page (`:8321`) and that the Companion user exists with the exact password you entered. |
 
-Logs are your friend: `docker compose logs -f foundry` (or `gateway`,
-`relay`, `bootstrap`, `web`).
+Logs are your friend: `docker compose logs -f gateway` (or `relay`,
+`bootstrap`, `web`). The `foundry` log only exists on bundled installs — BYO
+setups have no `foundry` container here at all; check your own Foundry's logs
+instead.
+
+With an external Foundry plus the TLS profile (section 8), the `vtt.<domain>`
+proxy target doesn't exist — leave that DNS record unconfigured, or expect a
+502 there.
 
 ## 10. Getting help
 

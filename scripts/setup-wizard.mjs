@@ -86,9 +86,14 @@ ${head}<title>${escapeHtml(title)}</title><style>${STYLE}</style></head>
 export function renderCredsForm({
   needCreds,
   needTls,
+  needMode = false,
+  defaultMode = 'bundled',
+  mode = defaultMode,
   error = null,
   username = '',
   licenseKey = '',
+  foundryUrl = '',
+  gmUser = '',
   publicHost = '',
   tls = false,
   domainApp = '',
@@ -96,14 +101,46 @@ export function renderCredsForm({
   acmeEmail = '',
 }) {
   const err = error === null ? '' : `<p class="err">${escapeHtml(error)}</p>`;
-  const creds = !needCreds
+  // No client JS in this page (spec: zero runtime deps) — when needMode both
+  // sections are rendered and validateForm/normalizeForm gate purely server-
+  // side; without needMode only the section matching defaultMode renders (no
+  // radio), same as today's needCreds/needTls "absent section" convention.
+  // needCreds also gates the radio (not needMode alone): with !needCreds there
+  // is nothing to collect for either mode, so a mode choice is meaningless —
+  // the radio would ask the operator to pick between two sets of fields that
+  // both stay empty.
+  const modeRadio = !needCreds || !needMode
+    ? ''
+    : `<label><input type="radio" name="mode" value="bundled"${mode !== 'external' ? ' checked' : ''}> Run Foundry for me (recommended)</label>
+<label><input type="radio" name="mode" value="external"${mode === 'external' ? ' checked' : ''}> Connect to my existing Foundry server</label>`;
+  const showBundled = needCreds && (needMode || mode !== 'external');
+  const showExternal = needCreds && (needMode || mode === 'external');
+  // HTML5 `required` must NOT be set on both sections' inputs at once: with
+  // needMode both sections render simultaneously (no show/hide script), and
+  // native constraint validation checks every visible required field
+  // regardless of which radio is picked — it would block "Begin the ritual"
+  // until BOTH modes' fields are filled. Only mark required when there is
+  // exactly one section on the page (!needMode); otherwise the per-mode
+  // requirement is enforced server-side by validateForm on submit.
+  const req = needMode ? '' : ' required';
+  const bundledSection = !showBundled
     ? ''
     : `<label for="username">foundry.com username or email</label>
-<input type="text" id="username" name="username" value="${escapeHtml(username)}" autocomplete="username" required>
+<input type="text" id="username" name="username" value="${escapeHtml(username)}" autocomplete="username"${req}>
 <label for="password">foundry.com password</label>
-<input type="password" id="password" name="password" autocomplete="current-password" required>
+<input type="password" id="password" name="password" autocomplete="current-password"${req}>
 <label for="licenseKey">license key <small>(leave blank to fetch from the account)</small></label>
 <input type="text" id="licenseKey" name="licenseKey" value="${escapeHtml(licenseKey)}">`;
+  const externalSection = !showExternal
+    ? ''
+    : `<label for="foundryUrl">existing Foundry URL <small>as reachable from the companion server</small></label>
+<input type="text" id="foundryUrl" name="foundryUrl" placeholder="http://192.168.1.9:30000" value="${escapeHtml(foundryUrl)}"${req}>
+<p><small>Using https on your Foundry blocks the module's ws:// relay connection (mixed content) — you'll need the relay behind your own TLS proxy.</small></p>
+<label for="gmUser">Companion user name <small>(create a Gamemaster-role user for the app first)</small></label>
+<input type="text" id="gmUser" name="gmUser" placeholder="Companion" value="${escapeHtml(gmUser)}">
+<label for="gmPassword">Companion user password</label>
+<input type="password" id="gmPassword" name="gmPassword" autocomplete="current-password"${req}>`;
+  const creds = `${modeRadio}${bundledSection}${externalSection}`;
   const publicHostSection = !needTls
     ? ''
     : `<label for="publicHost">Where will you (the GM) reach this server? <small>Pairing links and the module URL use this.</small></label>
@@ -216,11 +253,25 @@ function readBody(req, maxBytes) {
   });
 }
 
+/** Which mode the submission is for: the posted radio when needMode, else the
+ *  install's already-known mode (defaultMode) — mirrors detectInstalledMode. */
+function resolveMode(form, { needMode = false, defaultMode = 'bundled' }) {
+  return needMode ? (form.mode === 'external' ? 'external' : 'bundled') : defaultMode;
+}
+
 /** null when valid, else a user-facing error string. */
-export function validateForm(form, { needCreds, needTls }) {
+export function validateForm(form, { needCreds, needTls, needMode = false, defaultMode = 'bundled' }) {
+  const mode = resolveMode(form, { needMode, defaultMode });
   if (needCreds) {
-    if ((form.username ?? '').trim() === '') return 'foundry.com username is required.';
-    if ((form.password ?? '') === '') return 'foundry.com password is required.';
+    if (mode === 'external') {
+      const url = (form.foundryUrl ?? '').trim();
+      if (url === '') return 'the URL of your existing Foundry server is required.';
+      if (!/^https?:\/\//.test(url)) return 'the Foundry URL must start with http:// or https://.';
+      if ((form.gmPassword ?? '') === '') return 'the Companion user password is required.';
+    } else {
+      if ((form.username ?? '').trim() === '') return 'foundry.com username is required.';
+      if ((form.password ?? '') === '') return 'foundry.com password is required.';
+    }
   }
   if (needTls && (form.publicHost ?? '').trim() === '') {
     return "tell us where you'll reach this server (IP or domain).";
@@ -233,14 +284,22 @@ export function validateForm(form, { needCreds, needTls }) {
   return null;
 }
 
-export function normalizeForm(form, { needCreds, needTls }) {
+export function normalizeForm(form, { needCreds, needTls, needMode = false, defaultMode = 'bundled' }) {
+  const mode = resolveMode(form, { needMode, defaultMode });
   const creds = !needCreds
     ? null
-    : {
-        username: form.username.trim(),
-        password: form.password,
-        licenseKey: (form.licenseKey ?? '').trim(),
-      };
+    : mode === 'external'
+      ? {
+          mode: 'external',
+          gmUser: (form.gmUser ?? '').trim() || 'Companion',
+          gmPassword: form.gmPassword ?? '',
+        }
+      : {
+          username: form.username.trim(),
+          password: form.password,
+          licenseKey: (form.licenseKey ?? '').trim(),
+        };
+  const foundry = mode === 'external' ? { mode: 'external', url: (form.foundryUrl ?? '').trim() } : { mode: 'bundled' };
   const tls =
     needTls && form.tls === 'on'
       ? {
@@ -250,12 +309,22 @@ export function normalizeForm(form, { needCreds, needTls }) {
           acmeEmail: form.acmeEmail.trim(),
         }
       : { enabled: false };
-  const result = { creds, tls };
+  const result = { creds, tls, foundry };
   if (needTls) result.publicHost = (form.publicHost ?? '').trim();
   return result;
 }
 
-export function createWizard({ token, needCreds, needTls, defaultPublicHost = '', bgPath, statusUrl, onSubmit }) {
+export function createWizard({
+  token,
+  needCreds,
+  needTls,
+  needMode = false,
+  defaultMode = 'bundled',
+  defaultPublicHost = '',
+  bgPath,
+  statusUrl,
+  onSubmit,
+}) {
   let state = 'collecting';
   let exitCode = 1;
   let bg = null; // lazily read so construction is side-effect-free
@@ -276,7 +345,7 @@ export function createWizard({ token, needCreds, needTls, defaultPublicHost = ''
   function pageForState() {
     switch (state) {
       case 'collecting':
-        return renderCredsForm({ needCreds, needTls, publicHost: defaultPublicHost });
+        return renderCredsForm({ needCreds, needTls, needMode, defaultMode, publicHost: defaultPublicHost });
       case 'submitting':
       case 'composing':
         return renderProgressPage();
@@ -352,12 +421,17 @@ export function createWizard({ token, needCreds, needTls, defaultPublicHost = ''
         return; // backstop path: socket already destroyed
       }
       const form = parseFormBody(body);
-      const error = validateForm(form, { needCreds, needTls });
+      const error = validateForm(form, { needCreds, needTls, needMode, defaultMode });
       const preservedFields = {
         needCreds,
         needTls,
+        needMode,
+        defaultMode,
+        mode: resolveMode(form, { needMode, defaultMode }),
         username: form.username ?? '',
         licenseKey: form.licenseKey ?? '',
+        foundryUrl: form.foundryUrl ?? '',
+        gmUser: form.gmUser ?? '',
         publicHost: form.publicHost ?? '',
         tls: form.tls === 'on',
         domainApp: form.domainApp ?? '',
@@ -373,7 +447,7 @@ export function createWizard({ token, needCreds, needTls, defaultPublicHost = ''
       submitResolve('browser'); // the CLI race cancels its terminal listener now
       let secrets;
       try {
-        secrets = await onSubmit(normalizeForm(form, { needCreds, needTls }));
+        secrets = await onSubmit(normalizeForm(form, { needCreds, needTls, needMode, defaultMode }));
       } catch (err) {
         state = 'collecting';
         submitLocked = false;
