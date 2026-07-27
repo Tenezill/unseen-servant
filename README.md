@@ -8,6 +8,21 @@ D&D 5e (best supported), Mörk Borg, and Vampire: the Masquerade 5e.
 Free to use. The app itself is closed-source; this repo contains the
 installer and deployment files.
 
+## See it
+
+A one-tap join link drops each player onto their own character — no Foundry
+account, no app install, no app store. Everything writes back to Foundry live.
+
+| Character overview | Combat & turn order | Move your token |
+|---|---|---|
+| <img src="screenshots/v2-02-overview.png" width="240"> | <img src="screenshots/v2-05-combat.png" width="240"> | <img src="screenshots/v2-06-movement.png" width="240"> |
+
+| Spellbook | GM-requested saves | One-time setup wizard |
+|---|---|---|
+| <img src="screenshots/v2-11-spells.png" width="240"> | <img src="screenshots/v2-08-save-prompt.png" width="240"> | <img src="screenshots/25-wizard-creds.png" width="240"> |
+
+**Full picture tour of every screen: [`WALKTHROUGH.md`](WALKTHROUGH.md).**
+
 ## What you get
 
 One `docker compose` stack: Foundry VTT (bring your own license), the
