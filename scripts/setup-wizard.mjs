@@ -14,22 +14,6 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
-/** Normalize a GM-host answer to a bare host (IP or domain). Users often
- *  paste a full URL (esp. their Foundry's, in BYO mode) — extract the
- *  hostname; strip scheme/port/path/whitespace. Returns null when nothing
- *  host-like remains (caller re-prompts / shows a validation error). */
-export function normalizePublicHost(input) {
-  const raw = String(input ?? '').trim();
-  if (raw === '') return null;
-  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `http://${raw}`;
-  try {
-    const host = new URL(candidate).hostname;
-    return host === '' ? null : host;
-  } catch {
-    return null;
-  }
-}
-
 export function escapeHtml(s) {
   return String(s)
     .replaceAll('&', '&amp;')
@@ -82,10 +66,6 @@ color:var(--ink);font-size:1rem}
 input:focus{outline:2px solid var(--gold);outline-offset:1px}
 details{margin-top:1rem;border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem}
 summary{cursor:pointer;color:var(--gold)}
-input[type=radio]{accent-color:var(--gold);margin:.85rem .5rem 0 0;vertical-align:middle}
-.mode-label{display:inline;color:var(--ink-dim);font-size:.9rem;cursor:pointer}
-#mode-bundled:checked ~ .mode-section-external{display:none}
-#mode-external:checked ~ .mode-section-bundled{display:none}
 button{margin-top:1.3rem;width:100%;padding:.85rem;border:0;border-radius:10px;
 background:var(--gold);color:var(--accent-ink);font-size:1.05rem;font-weight:700;cursor:pointer}
 button:hover{background:var(--gold-bright)}
@@ -129,18 +109,10 @@ export function renderCredsForm({
   // is nothing to collect for either mode, so a mode choice is meaningless —
   // the radio would ask the operator to pick between two sets of fields that
   // both stay empty.
-  // The radio inputs are siblings of the .mode-section wrappers below (NOT
-  // nested inside their <label>s): a :checked selector can only reach
-  // siblings/descendants that follow it in the DOM, so the CSS-only toggle
-  // (`#mode-bundled:checked ~ .mode-section-external{display:none}` etc.,
-  // in STYLE above) needs the radios and both section wrappers to be direct
-  // siblings under the same parent.
   const modeRadio = !needCreds || !needMode
     ? ''
-    : `<input type="radio" id="mode-bundled" name="mode" value="bundled"${mode !== 'external' ? ' checked' : ''}>
-<label for="mode-bundled" class="mode-label">Run Foundry for me (recommended)</label><br>
-<input type="radio" id="mode-external" name="mode" value="external"${mode === 'external' ? ' checked' : ''}>
-<label for="mode-external" class="mode-label">Connect to my existing Foundry server</label>`;
+    : `<label><input type="radio" name="mode" value="bundled"${mode !== 'external' ? ' checked' : ''}> Run Foundry for me (recommended)</label>
+<label><input type="radio" name="mode" value="external"${mode === 'external' ? ' checked' : ''}> Connect to my existing Foundry server</label>`;
   const showBundled = needCreds && (needMode || mode !== 'external');
   const showExternal = needCreds && (needMode || mode === 'external');
   // HTML5 `required` must NOT be set on both sections' inputs at once: with
@@ -168,17 +140,10 @@ export function renderCredsForm({
 <input type="text" id="gmUser" name="gmUser" placeholder="Companion" value="${escapeHtml(gmUser)}">
 <label for="gmPassword">Companion user password</label>
 <input type="password" id="gmPassword" name="gmPassword" autocomplete="current-password"${req}>`;
-  // Wrap the two sections in .mode-section-* divs only when the radio is
-  // actually rendered (needMode && needCreds) — that's the only case where
-  // both sections render simultaneously and need the CSS toggle to hide the
-  // non-selected one. Without needMode, output is unchanged (one section,
-  // no wrapper, no radio).
-  const bundledWrapped = modeRadio === '' ? bundledSection : `<div class="mode-section mode-section-bundled">${bundledSection}</div>`;
-  const externalWrapped = modeRadio === '' ? externalSection : `<div class="mode-section mode-section-external">${externalSection}</div>`;
-  const creds = `${modeRadio}${bundledWrapped}${externalWrapped}`;
+  const creds = `${modeRadio}${bundledSection}${externalSection}`;
   const publicHostSection = !needTls
     ? ''
-    : `<label for="publicHost">Where will you (the GM) reach THIS machine? <small>IP or domain — not your Foundry URL. Pairing links and the module URL use this.</small></label>
+    : `<label for="publicHost">Where will you (the GM) reach this server? <small>Pairing links and the module URL use this.</small></label>
 <input type="text" id="publicHost" name="publicHost" value="${escapeHtml(publicHost)}" required>`;
   const tlsSection = !needTls
     ? ''
@@ -308,8 +273,8 @@ export function validateForm(form, { needCreds, needTls, needMode = false, defau
       if ((form.password ?? '') === '') return 'foundry.com password is required.';
     }
   }
-  if (needTls && normalizePublicHost(form.publicHost) === null) {
-    return "tell us where you'll reach this machine (IP or domain — not your Foundry URL).";
+  if (needTls && (form.publicHost ?? '').trim() === '') {
+    return "tell us where you'll reach this server (IP or domain).";
   }
   if (needTls && form.tls === 'on') {
     for (const f of ['domainApp', 'domainVtt', 'acmeEmail']) {
@@ -345,7 +310,7 @@ export function normalizeForm(form, { needCreds, needTls, needMode = false, defa
         }
       : { enabled: false };
   const result = { creds, tls, foundry };
-  if (needTls) result.publicHost = normalizePublicHost(form.publicHost) ?? '';
+  if (needTls) result.publicHost = (form.publicHost ?? '').trim();
   return result;
 }
 

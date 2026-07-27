@@ -47,10 +47,8 @@ the standard bundled setup, the wizard continues with:
    else.
 2. **License key** — leave blank; it's fetched from your account
    automatically.
-3. **Where will you (the GM) reach THIS machine?** — pre-filled with your
+3. **Where will you (the GM) reach this server?** — pre-filled with your
    machine's LAN IP. Press Enter to accept, or type a domain if you have one.
-   This is an IP/domain, not a URL — and it's the machine running Companion,
-   not your Foundry server (that distinction matters in BYO mode, see 2b).
    Pairing links and the module URL are built from this answer.
 4. **HTTPS on your own domain?** — optional, skip for a first run (see
    section 8).

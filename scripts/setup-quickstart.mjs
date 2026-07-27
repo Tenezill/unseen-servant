@@ -12,7 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { spawn, spawnSync } from 'node:child_process';
-import { createWizard, normalizePublicHost } from './setup-wizard.mjs';
+import { createWizard } from './setup-wizard.mjs';
 import { networkInterfaces } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,17 +71,6 @@ export function buildGatewayEnv({ adminPassword }) {
 /** foundry: {mode:'bundled'} | {mode:'external', url} — drives which services
  *  compose starts (COMPOSE_PROFILES) and where the bootstrap sidecar looks. */
 export function buildDotEnv({ tls, publicHost, foundry }) {
-  // Defense in depth: callers must have already run publicHost through
-  // normalizePublicHost. A slash means a full URL slipped through
-  // un-normalized (see the RELAY_PUBLIC_URL=http://http://… incident) —
-  // throw rather than silently write a broken .env. A colon is normally the
-  // same tell (host:port), EXCEPT a normalized IPv6 literal is `[::1]`-style
-  // — bracketed, colon-containing, and entirely legitimate (new URL(...).hostname
-  // keeps the brackets per WHATWG) — so that shape is allowed through.
-  const isBracketedIPv6 = /^\[[0-9a-fA-F:]+\]$/.test(publicHost);
-  if (publicHost.includes('/') || (publicHost.includes(':') && !isBracketedIPv6)) {
-    throw new Error(`buildDotEnv: publicHost "${publicHost}" looks like a URL, not a bare host — normalize it first.`);
-  }
   const lines = ['HOST_PORT_WEB=8080', 'HOST_PORT_FOUNDRY=30000', 'HOST_PORT_RELAY=3010', 'HOST_PORT_STATUS=8321'];
   const profiles = [];
   if (foundry.mode === 'bundled') profiles.push('foundry');
@@ -452,25 +441,8 @@ async function main() {
           tls.acmeEmail = (await rl.question("  email for Let's Encrypt: ")).trim();
         }
         const defaultHost = wantTls ? tls.domainApp || ip : ip;
-        // lanIp() falls back to the literal '<this-host-ip>' placeholder when it
-        // finds no non-internal IPv4 — that placeholder is not itself a valid
-        // host, so offering it as "[default]" would make a bare Enter loop
-        // forever with no explanation. Detect that up front: drop the bracketed
-        // default from the prompt and tell the operator why.
-        const defaultIsUsable = normalizePublicHost(defaultHost) !== null;
-        if (!defaultIsUsable) {
-          console.log("  couldn't auto-detect this machine's address — enter it manually (IP or domain).");
-        }
-        const prompt = defaultIsUsable
-          ? `Where will you (the GM) reach THIS machine? (IP or domain — not your Foundry URL) [${defaultHost}]: `
-          : 'Where will you (the GM) reach THIS machine? (IP or domain — not your Foundry URL): ';
-        let host = null;
-        while (host === null) {
-          const answered = (await rl.question(prompt)).trim();
-          host = normalizePublicHost(answered === '' && defaultIsUsable ? defaultHost : answered);
-          if (host === null) console.log("  that doesn't look like a bare IP or domain — no scheme, no port, no path.");
-        }
-        writeEnvFiles(tls, host, foundry);
+        const answered = (await rl.question(`Where will you (the GM) reach this server? [${defaultHost}]: `)).trim();
+        writeEnvFiles(tls, answered === '' ? defaultHost : answered, foundry);
       }
       if (generated.length > 0) printGeneratedSecrets(generated);
     }
