@@ -72,16 +72,19 @@ status — this is the bridge the app talks to.
 The self-hosted admin console is where you mint one-tap join links per player,
 scope each to specific characters, and revoke them.
 
-| Admin login | Player links |
-|---|---|
-| <img src="screenshots/20-admin-login.png" width="300"> | <img src="screenshots/21-admin-players.png" width="300"> |
+| Admin login | Player links | Relay & pairing |
+|---|---|---|
+| <img src="screenshots/v2-20-admin-login.png" width="260"> | <img src="screenshots/v2-21-admin-players.png" width="260"> | <img src="screenshots/v2-22-admin-relay-pairing.png" width="260"> |
 
-Each player is bound to one or more Foundry actors. **New link** rotates their
-invite, **Revoke** kills it. Links survive restarts.
+Each player is bound to one or more Foundry actors — *Player Three* above is
+scoped to two. **New link** rotates their invite, **Revoke** kills it. Links
+survive restarts.
 
-The console also carries a relay & pairing panel that shows connection status and
-the exact `ws://` URL to paste into the Foundry module, so you never have to
-assemble it by hand.
+The **Relay & pairing** panel is the part that saves you a support call. It hands
+you the relay account to approve pairing with, and the exact
+`ws://<your-host>:3010` URL to paste into the module — no assembling it by hand,
+no guessing whether it should be your Foundry's address or this machine's. The
+password stays masked until you ask for it.
 
 ---
 
