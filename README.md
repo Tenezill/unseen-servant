@@ -19,7 +19,7 @@ account, no app install, no app store. Everything writes back to Foundry live.
 
 | Spellbook | GM-requested saves | One-time setup wizard |
 |---|---|---|
-| <img src="screenshots/v2-11-spells.png" width="240"> | <img src="screenshots/v2-08-save-prompt.png" width="240"> | <img src="screenshots/25-wizard-creds.png" width="240"> |
+| <img src="screenshots/v2-11-spells.png" width="240"> | <img src="screenshots/v2-08-save-prompt.png" width="240"> | <img src="screenshots/v2-14-wizard-bundled.png" width="240"> |
 
 **Full picture tour of every screen: [`WALKTHROUGH.md`](WALKTHROUGH.md).**
 

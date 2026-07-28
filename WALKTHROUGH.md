@@ -20,24 +20,38 @@ dark "Gilded Tome" and a light parchment variant.
 the token and secrets can't linger). It generates every secret for you, shows
 them **once**, then brings the whole stack up.
 
-| Enter credentials | Save the generated secrets | Stack is up |
-|---|---|---|
-| <img src="screenshots/25-wizard-creds.png" width="260"> | <img src="screenshots/26-wizard-secrets.png" width="260"> | <img src="screenshots/27-wizard-done.png" width="260"> |
-
-*Credentials are written to a `0600` file on your host — they never leave it.
-Secrets shown above are placeholders, not real values.*
-
 ### Two ways to run it
 
-The wizard forks at the first question, so you are not forced into a bundled
-Foundry:
+The very first control on the form is the fork — you are not pushed into a
+bundled Foundry. Picking a mode swaps the fields below it:
 
-- **Bundled** — the stack brings up its own Foundry container, installs the D&D
-  5e system and the REST module, and launches the world for you. Nothing to set
-  up by hand.
-- **Bring your own** — you already run Foundry (a hosted instance, a NAS, a
-  different machine). The stack skips the Foundry container entirely and points
-  at yours instead. You install one module; everything else is unchanged.
+| Run Foundry for me | Connect my existing Foundry |
+|---|---|
+| <img src="screenshots/v2-14-wizard-bundled.png" width="330"> | <img src="screenshots/v2-15-wizard-external.png" width="330"> |
+
+- **Run Foundry for me** — the stack brings up its own Foundry container,
+  installs the D&D 5e system and the REST module, and launches the world for
+  you. It asks only for your foundryvtt.com login so the container can download
+  and license itself. Nothing else to set up by hand.
+- **Connect my existing Foundry** — you already run Foundry (a hosted instance,
+  a NAS, another machine). No Foundry container is started at all. Instead it
+  asks for your Foundry's URL *as reachable from the companion server*, plus a
+  dedicated Gamemaster-role user for the app to log in as. You install one
+  module; everything else is unchanged.
+
+*Note the warning in the right-hand shot: if your existing Foundry is behind
+HTTPS, the module's `ws://` relay connection is blocked as mixed content, so the
+relay needs to sit behind your own TLS proxy. The guide covers this.*
+
+### Then it hands you your secrets, once
+
+<img src="screenshots/v2-16-wizard-secrets.png" width="380">
+
+Credentials you typed are written to a `0600` file on your host and never leave
+it. The generated secrets are shown on this page exactly once — they are also
+printed in the terminal that ran `make setup`.
+
+*The values above are obvious placeholders, not real secrets.*
 
 ---
 
@@ -58,12 +72,16 @@ status — this is the bridge the app talks to.
 The self-hosted admin console is where you mint one-tap join links per player,
 scope each to specific characters, and revoke them.
 
-| Admin login | Player links | Relay & pairing |
-|---|---|---|
-| <img src="screenshots/20-admin-login.png" width="260"> | <img src="screenshots/21-admin-players.png" width="260"> | <img src="screenshots/22-admin-relay-pairing.png" width="260"> |
+| Admin login | Player links |
+|---|---|
+| <img src="screenshots/20-admin-login.png" width="300"> | <img src="screenshots/21-admin-players.png" width="300"> |
 
 Each player is bound to one or more Foundry actors. **New link** rotates their
 invite, **Revoke** kills it. Links survive restarts.
+
+The console also carries a relay & pairing panel that shows connection status and
+the exact `ws://` URL to paste into the Foundry module, so you never have to
+assemble it by hand.
 
 ---
 
