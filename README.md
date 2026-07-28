@@ -92,6 +92,21 @@ redistribution/resale; see `/licence/EULA.md` inside each image, along with
 third-party attributions). Foundry VTT and the relay are separate projects
 under their own terms.
 
+## Trademarks & game content
+
+Unseen Servant is an independent, unofficial companion app. It is **not
+affiliated with, endorsed, or sponsored by** Wizards of the Coast, Paradox
+Interactive, Renegade Game Studios, Foundry Gaming, or any other game publisher.
+*Dungeons & Dragons*, *Vampire: The Masquerade*, *Mörk Borg*, *Foundry Virtual
+Tabletop* and related marks belong to their respective owners, and are used here
+only to say which systems the app works with.
+
+The app ships **no game content** — no rulebooks, compendia, stat blocks or
+spell text. It reads your characters live from your own Foundry instance, so the
+only rules content involved is the content already in your world. Full notices
+and SRD 5.1 attribution: [`GAME-CONTENT.md`](GAME-CONTENT.md) (also at
+`/licence/GAME-CONTENT.md` inside each image).
+
 ## Issues
 
 Bug reports and feature requests welcome — open an issue here.
