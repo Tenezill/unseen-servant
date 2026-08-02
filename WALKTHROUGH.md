@@ -130,6 +130,8 @@ line updates to the die you will actually roll.
 When the GM starts an encounter the app follows along. Your party's exact HP is
 visible; monsters deliberately show only a **health tier** (*Healthy*,
 *Wounded*, *Bloodied*) so the app never leaks numbers the GM has not shared.
+An unlinked monster whose maximum HP isn't known to the app shows *Alive*
+instead, and flips to *Down* the moment it drops.
 
 A floating turn-order carousel rides above every tab so you always know who is
 up. It collapses to a pill when it is in the way, and auto-expands on your turn
