@@ -72,7 +72,7 @@ services:
     restart: unless-stopped
 
   bootstrap:
-    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.6.0
+    image: ghcr.io/tenezill/unseen-servant-bootstrap:v0.7.0
     env_file:
       # raw: secret values must survive verbatim (no $-interpolation)
       - path: ./secrets/bootstrap.env
@@ -97,7 +97,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    image: ghcr.io/tenezill/unseen-servant-gateway:v0.6.0
+    image: ghcr.io/tenezill/unseen-servant-gateway:v0.7.0
     env_file:
       - path: ./secrets/gateway.env
         format: raw
@@ -114,6 +114,12 @@ services:
       # approvals point at THIS relay, not the public foundryrestapi.com.
       - RELAY_PUBLIC_URL=${RELAY_PUBLIC_URL:-}
       - PLAYERS_FILE=/data/players.yaml
+      # World-switching: worlds list, bootstrap command token, and desired-world
+      # directive from the sidecar.
+      - WORLDS_FILE=/run/companion/worlds.json
+      - COMMAND_TOKEN_FILE=/run/companion/command-token.json
+      - DESIRED_WORLD_FILE=/run/companion/desired-world.json
+      - BOOTSTRAP_COMMAND_URL=http://bootstrap:8321
     volumes:
       - ./gateway-data:/data
       - ./companion-runtime:/run/companion:ro
@@ -122,7 +128,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/tenezill/unseen-servant-web:v0.6.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.7.0
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
@@ -136,7 +142,7 @@ services:
   # `sysctl net.ipv4.ip_unprivileged_port_start=80` (docs Part C).
   web-tls:
     profiles: ["tls"]
-    image: ghcr.io/tenezill/unseen-servant-web:v0.6.0
+    image: ghcr.io/tenezill/unseen-servant-web:v0.7.0
     volumes:
       - ./Caddyfile.tls:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
